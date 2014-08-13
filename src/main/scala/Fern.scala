@@ -22,19 +22,21 @@ class FernModel (
 
     labels(labelIdx)
   }
+
+  def scores(testData: Vector): Array[Double] = {
+    val features = testData.toArray
+    val selected = featureIndices.map(features)
+
+    val pointIdx = Fern.toPointIndex(selected)
+
+    (0 until labels.length).map(i => scores(i)(pointIdx)).toArray
+  }
 }
 
 /**
  * @author Mateusz Fedoryszak (m.fedoryszak@icm.edu.pl)
  */
 class Fern {
-  def run(data: RDD[LabeledPoint], numFeatures: Int): FernModel = {
-    val allFeaturesNo = data.first().features.size
-    val featureIndices = Random.shuffle(0 until allFeaturesNo toList).take(numFeatures).sorted
-
-    run(data, featureIndices)
-  }
-
   def run(data: RDD[LabeledPoint], featureIndices: List[Int]): FernModel = {
     val numFeatures = featureIndices.length
 
@@ -92,6 +94,13 @@ object Fern {
   }
 
   def train(input: RDD[LabeledPoint], numFeatures: Int): FernModel = {
-    new Fern().run(input, numFeatures)
+    val allFeaturesNo = input.first().features.size
+    val featureIndices = Random.shuffle(0 until allFeaturesNo toList).take(numFeatures).sorted
+
+    new Fern().run(input, featureIndices)
+  }
+  
+  def train(input: RDD[LabeledPoint], featureIndices: List[Int]): FernModel = {
+    new Fern().run(input, featureIndices)
   }
 }
