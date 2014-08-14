@@ -21,11 +21,13 @@ class FernForestModel(private val ferns: List[FernModel]) extends Classification
  */
 class FernForest {
   def run(data: RDD[LabeledPoint], numFerns: Int, numFeatures: Int): FernForestModel = {
-    new FernForestModel(List.fill(numFerns)(Fern.train(data, numFeatures)))
+    val labels = data.map(p => p.label).distinct().collect()
+    new FernForestModel(List.fill(numFerns)(Fern.train(data, numFeatures, labels)))
   }
 
   def run(data: RDD[LabeledPoint], featureIndices: List[List[Int]]): FernForestModel = {
-    new FernForestModel(featureIndices.map(Fern.train(data, _)))
+    val labels = data.map(p => p.label).distinct().collect()
+    new FernForestModel(featureIndices.map(Fern.train(data, _, labels)))
   }
 }
 
