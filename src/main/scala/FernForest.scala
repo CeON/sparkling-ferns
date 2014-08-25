@@ -11,7 +11,7 @@ class FernForestModel(private val ferns: List[FernModel]) extends Classification
 
   override def predict(testData: Vector): Double = {
     val scores = ferns.map(_.scores(testData))
-    val scoreSums = scores.reduce(util.arrayReduction(_ + _))
+    val scoreSums = scores.reduce(util.arrayReduction[Double](_ + _))
     val labels = ferns.head.labels
     val labelIdx = (0 until labels.length) maxBy scoreSums
 
