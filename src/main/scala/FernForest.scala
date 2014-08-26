@@ -19,6 +19,8 @@ class FernForestModel(private val ferns: List[FernModel]) extends Classification
   }
 }
 
+case class FernForestModelWithStats(model: FernForestModel, oobConfusionMatrix: List[((Double, Double), Long)], featureImportance: List[(Int, Double)])
+
 /**
  * @author Mateusz Fedoryszak (m.fedoryszak@icm.edu.pl)
  */
@@ -26,6 +28,18 @@ class FernForest {
   def run(data: RDD[LabeledPoint], numFerns: Int, numFeatures: Int): FernForestModel = {
     val labels = FernForest.extractLabels(data)
     new FernForestModel(List.fill(numFerns)(Fern.train(data, numFeatures, labels)))
+  }
+
+  def runAndAssess(data: RDD[LabeledPoint], numFerns: Int, numFeatures: Int): FernForestModelWithStats = {
+    val labels = FernForest.extractLabels(data)
+    val modelsWithStats = List.fill(numFerns)(Fern.trainAndAssess(data, numFeatures, labels))
+
+    val featureImportance = modelsWithStats.flatMap(_.featureImportance).groupBy(_._1).map{case (idx, list) => (idx, FernForest.mean(list.unzip._2))}.toList
+    val confusionMatrix = modelsWithStats.flatMap(_.oobConfusionMatrix).groupBy(_._1).map{case (cell, list) => (cell, list.unzip._2.sum)}.toList
+
+    val model = new FernForestModel(modelsWithStats.map(_.model))
+
+    FernForestModelWithStats(model, confusionMatrix, featureImportance)
   }
 
   def run(data: RDD[LabeledPoint], featureIndices: List[List[Int]]): FernForestModel = {
@@ -38,11 +52,16 @@ class FernForest {
  * @author Mateusz Fedoryszak (m.fedoryszak@icm.edu.pl)
  */
 object FernForest {
+  private def mean[T](s: Seq[T])(implicit n: Fractional[T]) = n.div(s.sum, n.fromInt(s.size))
+
   def extractLabels(data: RDD[LabeledPoint]) =
     data.map(p => p.label).distinct().collect()
 
   def train(input: RDD[LabeledPoint], numFerns: Int, numFeatures: Int): FernForestModel =
     new FernForest().run(input, numFerns, numFeatures)
+
+  def trainAndAssess(input: RDD[LabeledPoint], numFerns: Int, numFeatures: Int): FernForestModelWithStats =
+    new FernForest().runAndAssess(input, numFerns, numFeatures)
 
   def train(input: RDD[LabeledPoint], featureIndices: List[List[Int]]): FernForestModel =
     new FernForest().run(input, featureIndices)

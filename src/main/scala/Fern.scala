@@ -189,6 +189,13 @@ object Fern {
     new Fern(Some(labels)).run(input, featureIndices, thresholds)
   }
 
+  def trainAndAssess(input: RDD[LabeledPoint], numFeatures: Int, labels: Array[Double]): FernModelWithStats = {
+    val featureIndices = sampleFeatureIndices(input, numFeatures)
+    val thresholds = sampleThresholds(input, featureIndices)
+
+    new Fern(Some(labels)).runAndAssess(input, featureIndices, thresholds)
+  }
+
   def train(input: RDD[LabeledPoint], featureIndices: List[Int], labels: Array[Double]): FernModel =
     new Fern(Some(labels)).run(input, featureIndices, sampleThresholds(input, featureIndices))
 
