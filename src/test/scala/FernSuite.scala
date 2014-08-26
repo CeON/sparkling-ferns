@@ -61,4 +61,36 @@ class FernSuite extends FunSuite with LocalSparkContext {
     assert(model.predict(Vectors.dense(1.0, -1.0, -1.0)) == 1.0)
     assert(model.predict(Vectors.dense(-1.0, 1.0, 1.0)) == -1.0)
   }
+
+  test("Confusion matrix") {
+    val dataset = Seq(
+      LabeledPoint(1.0, Vectors.dense(1.0, 1.0, 1.0)),
+      LabeledPoint(1.0, Vectors.dense(1.0, 1.0, 1.0)),
+      LabeledPoint(1.0, Vectors.dense(1.0, 1.0, 1.0)),
+      LabeledPoint(-1.0, Vectors.dense(-1.0, -1.0, -1.0)),
+      LabeledPoint(-1.0, Vectors.dense(-1.0, -1.0, -1.0))
+    )
+
+    val rdd = sc.parallelize(dataset)
+
+    val model = Fern.train(rdd, List(0), List.fill(3)(0.0))
+
+    val validationSet = Seq(
+      LabeledPoint(1.0, Vectors.dense(1.0, 1.0, 1.0)),
+      LabeledPoint(1.0, Vectors.dense(1.0, 1.0, 1.0)),
+      LabeledPoint(1.0, Vectors.dense(1.0, 1.0, 1.0)),
+      LabeledPoint(1.0, Vectors.dense(-1.0, -1.0, -1.0)),
+      LabeledPoint(-1.0, Vectors.dense(-1.0, -1.0, -1.0)),
+      LabeledPoint(-1.0, Vectors.dense(-1.0, -1.0, -1.0))
+    )
+
+    val validationRdd = sc.parallelize(validationSet)
+
+    val confusionMatrix = model.confusionMatrix(validationRdd).toMap.withDefault(_ => 0)
+
+    assert(confusionMatrix((1.0, 1.0)) == 3)
+    assert(confusionMatrix((1.0, -1.0)) == 1)
+    assert(confusionMatrix((-1.0, -1.0)) == 2)
+    assert(confusionMatrix((-1.0, 1.0)) == 0)
+  }
 }
