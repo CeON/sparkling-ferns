@@ -1,4 +1,6 @@
 import breeze.numerics.log
+import breeze.stats.distributions.Poisson
+import org.apache.spark.SparkContext._
 import org.apache.spark.mllib.classification.ClassificationModel
 import org.apache.spark.mllib.linalg.Vector
 import org.apache.spark.mllib.regression.LabeledPoint
@@ -35,15 +37,43 @@ class FernModel (
 
     (0 until labels.length).map(i => scores(i)(pointIdx)).toArray
   }
+
+  def confusionMatrix(data: RDD[LabeledPoint]): List[((Double, Double), Long)] = {
+    data.map(p => (p.label, predict(p.features))).countByValue().toList
+  }
+  
+  def featureImportance(data: RDD[LabeledPoint]) = {
+    val labelsRev = labels.toList.zipWithIndex.toMap
+
+    featureIndices.map { index =>
+      val shuffled = Fern.shuffleFeatureValues(data, index)
+      val importance = shuffled.map{case (p, s) =>
+        val labelIndex = labelsRev(p.label)
+        scores(p.features)(labelIndex) - scores(s.features)(labelIndex)
+      }.mean()
+      (index, importance)
+    }
+  }
 }
 
 /**
  * @author Mateusz Fedoryszak (m.fedoryszak@icm.edu.pl)
  */
+case class FernModelWithStats(model: FernModel,
+                              oobConfusionMatrix: List[((Double, Double), Long)],
+                              featureImportance: List[(Int, Double)])
+
+/**
+ * @author Mateusz Fedoryszak (m.fedoryszak@icm.edu.pl)
+ */
 class Fern(val presetLabels: Option[Array[Double]] = None) {
-  
+  /**
+   * Constructs a model using a whole data as a training sample.
+   */
   def run(data: RDD[LabeledPoint], featureIndices: List[Int], thresholds: List[Double]): FernModel = {
     val numFeatures = featureIndices.length
+    val numDistinctPoints = 1 << numFeatures
+    val labels = presetLabels.getOrElse(data.map(_.label).distinct().collect())
 
     val converted = data.map { p =>
       val features = p.features.toArray
@@ -52,12 +82,36 @@ class Fern(val presetLabels: Option[Array[Double]] = None) {
       (p.label, Fern.toPointIndex(selected, thresholds))
     }
 
-    val aggregated = converted.groupBy(identity).map(x => (x._1, x._2.size)).collect()
+    val scores = computeScores(converted, numDistinctPoints, labels)
 
-    val labels = presetLabels.getOrElse(aggregated.map(_._1._1).distinct)
+    new FernModel(labels, featureIndices, thresholds, scores)
+  }
+
+  /**
+   * Constructs a model and assesses it. Uses bagging to divide the data into training and validation set. Sampling
+   * with replacement is simulated by sampling a number of occurrences for each element from a Poisson distribution with
+   * lambda = 1.
+   */
+  def runAndAssess(data: RDD[LabeledPoint], featureIndices: List[Int], thresholds: List[Double]): FernModelWithStats = {
+    val withMultipliers = data.map(x => (x, Poisson.distribution(1.0).draw()))
+
+    val training = withMultipliers.flatMap{case (x, mul) => List.fill(mul)(x)}
+    val oob = withMultipliers.filter(_._2 == 0).map(_._1)
+
+    val model = run(training, featureIndices, thresholds)
+
+    val confusionMatrix = model.confusionMatrix(oob)
+
+    val featureImportance = model.featureImportance(oob)
+
+    FernModelWithStats(model, confusionMatrix, featureImportance)
+  }
+
+  def computeScores(training: RDD[(Double, Int)], numDistinctPoints: Int, labels: Array[Double]) = {
+    val aggregated = training.groupBy(identity).map(x => (x._1, x._2.size)).collect()
+
     val labelsRev = labels.toList.zipWithIndex.toMap
     val numLabels = labels.length
-    val numDistinctPoints = 1 << numFeatures
 
     val objectsInLeafPerLabel = Array.fill[Long](numLabels, numDistinctPoints)(1)
     val objectsInLeaf = Array.fill[Long](numDistinctPoints)(0)
@@ -74,11 +128,11 @@ class Fern(val presetLabels: Option[Array[Double]] = None) {
 
     val scores = Array.tabulate[Double](numLabels, numDistinctPoints) { case (label, pointIdx) => log(
       (objectsInLeafPerLabel(label)(pointIdx) + 1).toDouble/(objectsInLeaf(pointIdx) + numLabels)
-      *
-      (numSamples + numLabels).toDouble/(objectsPerLabel(label) + 1)
-      )}
+        *
+        (numSamples + numLabels).toDouble/(objectsPerLabel(label) + 1)
+    )}
 
-    new FernModel(labels, featureIndices, thresholds, scores)
+    scores
   }
 }
 
@@ -112,6 +166,10 @@ object Fern {
   def sampleFeatureIndices(data: RDD[LabeledPoint], numFeatures: Int): List[Int] = {
     val allFeaturesNo = data.first().features.size
     Random.shuffle(0 until allFeaturesNo toList).take(numFeatures).sorted
+  }
+
+  def shuffleFeatureValues(data: RDD[LabeledPoint], featureIndex: Int): RDD[(LabeledPoint, LabeledPoint)] = {
+    data.map(x => (x,x))
   }
 
   def train(input: RDD[LabeledPoint], numFeatures: Int, labels: Array[Double]): FernModel = {
