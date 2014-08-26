@@ -2,7 +2,7 @@ import breeze.numerics.log
 import breeze.stats.distributions.Poisson
 import org.apache.spark.SparkContext._
 import org.apache.spark.mllib.classification.ClassificationModel
-import org.apache.spark.mllib.linalg.Vector
+import org.apache.spark.mllib.linalg.{Vectors, Vector}
 import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.rdd.RDD
 
@@ -169,7 +169,17 @@ object Fern {
   }
 
   def shuffleFeatureValues(data: RDD[LabeledPoint], featureIndex: Int): RDD[(LabeledPoint, LabeledPoint)] = {
-    data.map(x => (x,x))
+    val indexed = data.zipWithIndex().map(_.swap)
+    val permuted = data.map(_.features.toArray(featureIndex)).map(x => (Random.nextDouble(), x)).sortByKey().map(_._2)
+      .zipWithIndex().map(_.swap)
+
+    val results = indexed.join(permuted).map { case (_, (point, value)) =>
+      val array = point.features.toArray.clone()
+      array(featureIndex) = value
+      (point, LabeledPoint(point.label, Vectors.dense(array)))
+    }
+
+    results
   }
 
   def train(input: RDD[LabeledPoint], numFeatures: Int, labels: Array[Double]): FernModel = {

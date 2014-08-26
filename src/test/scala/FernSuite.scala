@@ -93,4 +93,33 @@ class FernSuite extends FunSuite with LocalSparkContext {
     assert(confusionMatrix((-1.0, -1.0)) == 2)
     assert(confusionMatrix((-1.0, 1.0)) == 0)
   }
+
+  test("Feature importance") {
+    val dataset = Seq(
+      LabeledPoint(1.0, Vectors.dense(1.0, 1.0)),
+      LabeledPoint(1.0, Vectors.dense(1.0, 1.0)),
+      LabeledPoint(1.0, Vectors.dense(1.0, 1.0)),
+      LabeledPoint(-1.0, Vectors.dense(-1.0, -1.0)),
+      LabeledPoint(-1.0, Vectors.dense(-1.0, -1.0))
+    )
+
+    val rdd = sc.parallelize(dataset)
+
+    val model = Fern.train(rdd, List(0, 1), List.fill(3)(0.0))
+
+    val validationSet = Seq(
+      LabeledPoint(1.0, Vectors.dense(1.0, 1.0)),
+      LabeledPoint(1.0, Vectors.dense(1.0, 1.0)),
+      LabeledPoint(1.0, Vectors.dense(1.0, 1.0)),
+      LabeledPoint(-1.0, Vectors.dense(-1.0, 1.0)),
+      LabeledPoint(-1.0, Vectors.dense(-1.0, 1.0)),
+      LabeledPoint(-1.0, Vectors.dense(-1.0, 1.0))
+    )
+
+    val validationRdd = sc.parallelize(validationSet)
+
+    val importance = model.featureImportance(validationRdd).toMap.withDefault(_ => 0.0)
+
+    assert(importance(0) > importance(1))
+  }
 }
