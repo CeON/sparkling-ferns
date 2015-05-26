@@ -29,9 +29,9 @@ class FernForestIrisSuite extends FunSuite with LocalSparkContext {
     val training = markedPoints.filter(_._2 < 0.7).map(_._1)
     val testing = markedPoints.filter(_._2 >= 0.7).map(_._1)
 
-    val model = FernForest.train(training, 10, 3)
+    val modelAndStats = FernForest.trainAndAssess(training, 10, 3)
     val accuracy = testing.map(p =>
-      if (model.predict(p.features) == p.label) 1.0 else 0.0
+      if (modelAndStats.model.predict(p.features) == p.label) 1.0 else 0.0
     ).mean()
 
     println(s"Accuracy: $accuracy")
