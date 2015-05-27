@@ -19,16 +19,14 @@ class FernModel (
   override def predict(testData: RDD[Vector]): RDD[Double] = testData.map(predict)
 
   override def predict(testData: Vector): Double = {
-    val features = testData.toArray
-    val selected = featureIndices.map(features)
-
-    val pointIdx = Fern.toPointIndex(selected, thresholds)
-
-    val labelIdx = (0 until labels.length).maxBy(i => scores(i)(pointIdx))
+    val labelIdx = (0 until labels.length).maxBy(scores(testData))
 
     labels(labelIdx)
   }
 
+  /**
+   * @return an array of scores for each label for a given Vector
+   */
   def scores(testData: Vector): Array[Double] = {
     val features = testData.toArray
     val selected = featureIndices.map(features)
@@ -38,15 +36,18 @@ class FernModel (
     (0 until labels.length).map(i => scores(i)(pointIdx)).toArray
   }
 
-  def confusionMatrix(data: RDD[LabeledPoint]): List[((Double, Double), Long)] = {
-    data.map(p => (p.label, predict(p.features))).countByValue().toList
+  /**
+   * @return a list of ((correct label, predicted label), count)
+   */
+  def confusionMatrix(testData: RDD[LabeledPoint]): List[((Double, Double), Long)] = {
+    testData.map(p => (p.label, predict(p.features))).countByValue().toList
   }
   
-  def featureImportance(data: RDD[LabeledPoint]) = {
+  def featureImportance(testData: RDD[LabeledPoint]): List[(Int, Double)] = {
     val labelsRev = labels.toList.zipWithIndex.toMap
 
     featureIndices.map { index =>
-      val shuffled = Fern.shuffleFeatureValues(data, index)
+      val shuffled = Fern.shuffleFeatureValues(testData, index)
       val importance = shuffled.map{case (p, s) =>
         val labelIndex = labelsRev(p.label)
         scores(p.features)(labelIndex) - scores(s.features)(labelIndex)
@@ -151,6 +152,10 @@ object Fern {
     helper(binary, 0)
   }
 
+  /**
+   * Continuous features are transformed into binary ones by sampling cut-off thresholds from the data. That's what this
+   * method does.
+   */
   def sampleThresholds(data: RDD[LabeledPoint], featureIndices: List[Int]): List[Double] = {
     data.map { p =>
       val features = p.features.toArray
