@@ -74,7 +74,7 @@ class Fern(val presetLabels: Option[Array[Double]] = None) {
   def run(data: RDD[LabeledPoint], featureIndices: List[Int], thresholds: List[Double]): FernModel = {
     val numFeatures = featureIndices.length
     val numDistinctPoints = 1 << numFeatures
-    val labels = presetLabels.getOrElse(data.map(_.label).distinct().collect())
+    val labels = presetLabels.getOrElse(util.extractLabels(data))
 
     val converted = data.map { p =>
       val features = p.features.toArray
