@@ -6,6 +6,7 @@ import org.apache.spark.mllib.linalg.{Vectors, Vector}
 import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.rdd.RDD
 
+import scala.collection.immutable.BitSet
 import scala.util.Random
 
 /**
@@ -14,7 +15,7 @@ import scala.util.Random
 class FernModel (
     val labels: Array[Double],
     val featureIndices: List[Int],
-    val thresholds: List[Double],
+    val binarisers: List[FeatureBinariser],
     val scores: Array[Array[Double]]) extends ClassificationModel with Serializable {
   override def predict(testData: RDD[Vector]): RDD[Double] = testData.map(predict)
 
@@ -31,7 +32,7 @@ class FernModel (
     val features = testData.toArray
     val selected = featureIndices.map(features)
 
-    val pointIdx = Fern.toPointIndex(selected, thresholds)
+    val pointIdx = Fern.toPointIndex(selected, binarisers)
 
     (0 until labels.length).map(i => scores(i)(pointIdx)).toArray
   }
@@ -71,7 +72,7 @@ class Fern(val presetLabels: Option[Array[Double]] = None) {
   /**
    * Constructs a model using a whole data as a training sample.
    */
-  def run(data: RDD[LabeledPoint], featureIndices: List[Int], thresholds: List[Double]): FernModel = {
+  def run(data: RDD[LabeledPoint], featureIndices: List[Int], binarisers: List[FeatureBinariser]): FernModel = {
     val numFeatures = featureIndices.length
     val numDistinctPoints = 1 << numFeatures
     val labels = presetLabels.getOrElse(util.extractLabels(data))
@@ -80,12 +81,12 @@ class Fern(val presetLabels: Option[Array[Double]] = None) {
       val features = p.features.toArray
       val selected = featureIndices.map(features)
 
-      (p.label, Fern.toPointIndex(selected, thresholds))
+      (p.label, Fern.toPointIndex(selected, binarisers))
     }
 
     val scores = computeScores(converted, numDistinctPoints, labels)
 
-    new FernModel(labels, featureIndices, thresholds, scores)
+    new FernModel(labels, featureIndices, binarisers, scores)
   }
 
   /**
@@ -93,13 +94,13 @@ class Fern(val presetLabels: Option[Array[Double]] = None) {
    * with replacement is simulated by sampling a number of occurrences for each element from a Poisson distribution with
    * lambda = 1.
    */
-  def runAndAssess(data: RDD[LabeledPoint], featureIndices: List[Int], thresholds: List[Double]): FernModelWithStats = {
+  def runAndAssess(data: RDD[LabeledPoint], featureIndices: List[Int], binarisers: List[FeatureBinariser]): FernModelWithStats = {
     val withMultipliers = data.map(x => (x, Poisson.distribution(1.0).draw()))
 
     val training = withMultipliers.flatMap{case (x, mul) => List.fill(mul)(x)}
     val oob = withMultipliers.filter(_._2 == 0).map(_._1)
 
-    val model = run(training, featureIndices, thresholds)
+    val model = run(training, featureIndices, binarisers)
 
     val confusionMatrix = model.confusionMatrix(oob)
 
@@ -141,8 +142,8 @@ class Fern(val presetLabels: Option[Array[Double]] = None) {
  * @author Mateusz Fedoryszak (m.fedoryszak@icm.edu.pl)
  */
 object Fern {
-  def toPointIndex(list: List[Double], thresholds: List[Double]): Int = {
-    val binary = (list zip thresholds).map{ case (el, threshold) => if (el > threshold) 1 else 0}
+  def toPointIndex(list: List[Double], binarisers: List[FeatureBinariser]): Int = {
+    val binary = (list zip binarisers).map{ case (el, binariser) => if (binariser(el)) 1 else 0}
 
     def helper(list: List[Int], acc: Int): Int = list match {
       case Nil => acc
@@ -168,9 +169,37 @@ object Fern {
     }.map(list => list.unzip._1.sum / 2)
   }
 
+  def thresholdsToBinarisers(thresholds: List[Double]) = thresholds.map(new ContinuousFeatureBinariser(_))
+
+  def sampleBinarisers(data: RDD[LabeledPoint], featureIndices: List[Int], categoricalFeaturesInfo: Map[Int, Int]): List[FeatureBinariser] = {
+    val continuousFeatureIndices = featureIndices.filterNot(categoricalFeaturesInfo.contains)
+    val thresholds = sampleThresholds(data, continuousFeatureIndices).zip(continuousFeatureIndices).map(_.swap).toMap
+
+    val selectedCategoricalFeaturesInfo = categoricalFeaturesInfo.filterKeys(featureIndices.contains)
+    val subsets = sampleSubsets(selectedCategoricalFeaturesInfo)
+
+    featureIndices.map {idx =>
+      if (categoricalFeaturesInfo.contains(idx))
+        new CategoricalFeatureBinariser(subsets(idx))
+      else
+        new ContinuousFeatureBinariser(thresholds(idx))
+    }
+  }
+
+  def sampleSubsets(categoricalFeaturesInfo: Map[Int, Int]): Map[Int, BitSet] = {
+    categoricalFeaturesInfo.mapValues(randomBitSet)
+  }
+
+  def randomBitSet(maxElem: Int): BitSet = {
+    val bitsInLong = 64
+    val longsNeeded = math.ceil(maxElem.toDouble / bitsInLong).toInt
+
+    BitSet.fromBitMaskNoCopy(Array.fill(longsNeeded)(Random.nextLong()))
+  }
+
   def sampleFeatureIndices(data: RDD[LabeledPoint], numFeatures: Int): List[Int] = {
     val allFeaturesNo = data.first().features.size
-    Random.shuffle(0 until allFeaturesNo toList).take(numFeatures).sorted
+    Random.shuffle((0 until allFeaturesNo).toList).take(numFeatures).sorted
   }
 
   def shuffleFeatureValues(data: RDD[LabeledPoint], featureIndex: Int): RDD[(LabeledPoint, LabeledPoint)] = {
@@ -189,30 +218,30 @@ object Fern {
 
   def train(input: RDD[LabeledPoint], numFeatures: Int, labels: Array[Double]): FernModel = {
     val featureIndices = sampleFeatureIndices(input, numFeatures)
-    val thresholds = sampleThresholds(input, featureIndices)
+    val binarisers = sampleBinarisers(input, featureIndices, Map.empty)
 
-    new Fern(Some(labels)).run(input, featureIndices, thresholds)
+    new Fern(Some(labels)).run(input, featureIndices, binarisers)
   }
 
   def trainAndAssess(input: RDD[LabeledPoint], numFeatures: Int, labels: Array[Double]): FernModelWithStats = {
     val featureIndices = sampleFeatureIndices(input, numFeatures)
-    val thresholds = sampleThresholds(input, featureIndices)
+    val binarisers = sampleBinarisers(input, featureIndices, Map.empty)
 
-    new Fern(Some(labels)).runAndAssess(input, featureIndices, thresholds)
+    new Fern(Some(labels)).runAndAssess(input, featureIndices, binarisers)
   }
 
   def train(input: RDD[LabeledPoint], featureIndices: List[Int], labels: Array[Double]): FernModel =
-    new Fern(Some(labels)).run(input, featureIndices, sampleThresholds(input, featureIndices))
+    new Fern(Some(labels)).run(input, featureIndices, sampleBinarisers(input, featureIndices, Map.empty))
 
   def train(input: RDD[LabeledPoint], numFeatures: Int, labels: Array[Double], thresholds: List[Double]): FernModel =
-    new Fern(Some(labels)).run(input, sampleFeatureIndices(input, numFeatures), thresholds)
+    new Fern(Some(labels)).run(input, sampleFeatureIndices(input, numFeatures), thresholdsToBinarisers(thresholds))
 
   def train(input: RDD[LabeledPoint], featureIndices: List[Int], labels: Array[Double], thresholds: List[Double]): FernModel =
-    new Fern(Some(labels)).run(input, featureIndices, thresholds)
+    new Fern(Some(labels)).run(input, featureIndices, thresholdsToBinarisers(thresholds))
 
   def train(input: RDD[LabeledPoint], numFeatures: Int, thresholds: List[Double]): FernModel =
-    new Fern(None).run(input, sampleFeatureIndices(input, numFeatures), thresholds)
+    new Fern(None).run(input, sampleFeatureIndices(input, numFeatures), thresholdsToBinarisers(thresholds))
 
   def train(input: RDD[LabeledPoint], featureIndices: List[Int], thresholds: List[Double]): FernModel =
-    new Fern(None).run(input, featureIndices, thresholds)
+    new Fern(None).run(input, featureIndices, thresholdsToBinarisers(thresholds))
 }
