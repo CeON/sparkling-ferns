@@ -17,7 +17,7 @@ class FernSuite extends FunSuite with LocalSparkContext {
 
     val rdd = sc.parallelize(dataset)
 
-    val model = Fern.train(rdd, 1, List.fill(3)(0.0))
+    val model = Fern.train(rdd, 1, List.fill(3)(0.0).map(new ContinuousFeatureBinariser(_)))
 
     assert(model.predict(Vectors.dense(1.0, 1.0, 1.0)) == 1.0)
     assert(model.predict(Vectors.dense(-1.0, -1.0, -1.0)) == -1.0)
@@ -35,7 +35,7 @@ class FernSuite extends FunSuite with LocalSparkContext {
 
     val rdd = sc.parallelize(dataset)
 
-    val model = Fern.train(rdd, 3, List.fill(3)(0.0))
+    val model = Fern.train(rdd, 3, List.fill(3)(0.0).map(new ContinuousFeatureBinariser(_)))
 
     assert(model.predict(Vectors.dense(1.0, 1.0, 1.0)) == 1.0)
     assert(model.predict(Vectors.dense(-1.0, -1.0, -1.0)) == -1.0)
@@ -53,7 +53,7 @@ class FernSuite extends FunSuite with LocalSparkContext {
 
     val rdd = sc.parallelize(dataset)
 
-    val model = Fern.train(rdd, List(0), List.fill(3)(0.0))
+    val model = Fern.train(rdd, List(0), List.fill(3)(0.0).map(new ContinuousFeatureBinariser(_)))
 
     assert(model.predict(Vectors.dense(1.0, 1.0, 1.0)) == 1.0)
     assert(model.predict(Vectors.dense(-1.0, -1.0, -1.0)) == -1.0)
@@ -73,7 +73,7 @@ class FernSuite extends FunSuite with LocalSparkContext {
 
     val rdd = sc.parallelize(dataset)
 
-    val model = Fern.train(rdd, List(0), List.fill(3)(0.0))
+    val model = Fern.train(rdd, List(0), List.fill(3)(0.0).map(new ContinuousFeatureBinariser(_)))
 
     val validationSet = Seq(
       LabeledPoint(1.0, Vectors.dense(1.0, 1.0, 1.0)),
@@ -105,7 +105,7 @@ class FernSuite extends FunSuite with LocalSparkContext {
 
     val rdd = sc.parallelize(dataset)
 
-    val model = Fern.train(rdd, List(0, 1), List.fill(3)(0.0))
+    val model = Fern.train(rdd, List(0, 1), List.fill(3)(0.0).map(new ContinuousFeatureBinariser(_)))
 
     val validationSet = Seq(
       LabeledPoint(1.0, Vectors.dense(1.0, 1.0)),

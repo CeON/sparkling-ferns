@@ -153,27 +153,9 @@ object Fern {
     helper(binary, 0)
   }
 
-  /**
-   * Continuous features are transformed into binary ones by sampling cut-off thresholds from the data. That's what this
-   * method does.
-   */
-  def sampleThresholds(data: RDD[LabeledPoint], featureIndices: List[Int]): List[Double] = {
-    data.map { p =>
-      val features = p.features.toArray
-      val selected = featureIndices.map(features)
-
-      val marked = selected.map(x => List((x, Random.nextFloat())))
-      marked
-    }.reduce{(list1, list2) =>
-      (list1 zip list2).map{ case (el1, el2) => (el1 ++ el2).sortBy(_._2).take(2)}
-    }.map(list => list.unzip._1.sum / 2)
-  }
-
-  def thresholdsToBinarisers(thresholds: List[Double]) = thresholds.map(new ContinuousFeatureBinariser(_))
-
   def sampleBinarisers(data: RDD[LabeledPoint], featureIndices: List[Int], categoricalFeaturesInfo: Map[Int, Int]): List[FeatureBinariser] = {
     val continuousFeatureIndices = featureIndices.filterNot(categoricalFeaturesInfo.contains)
-    val thresholds = sampleThresholds(data, continuousFeatureIndices).zip(continuousFeatureIndices).map(_.swap).toMap
+    val thresholds = sampleThresholds(data, continuousFeatureIndices)
 
     val selectedCategoricalFeaturesInfo = categoricalFeaturesInfo.filterKeys(featureIndices.contains)
     val subsets = sampleSubsets(selectedCategoricalFeaturesInfo)
@@ -186,15 +168,33 @@ object Fern {
     }
   }
 
-  def sampleSubsets(categoricalFeaturesInfo: Map[Int, Int]): Map[Int, BitSet] = {
-    categoricalFeaturesInfo.mapValues(randomBitSet)
+  /**
+   * Samples thresholds that will be used in continuous feature binarisation.
+   */
+  def sampleThresholds(data: RDD[LabeledPoint], featureIndices: List[Int]): Map[Int, Double] = {
+    data.map { p =>
+      val features = p.features.toArray
+      val selected = featureIndices.map(features)
+
+      val marked = selected.map(x => List((x, Random.nextFloat())))
+      marked
+    }.reduce{(list1, list2) =>
+      (list1 zip list2).map{ case (el1, el2) => (el1 ++ el2).sortBy(_._2).take(2)}
+    }.map(list => list.unzip._1.sum / 2).zip(featureIndices).map(_.swap).toMap
   }
 
-  def randomBitSet(maxElem: Int): BitSet = {
-    val bitsInLong = 64
-    val longsNeeded = math.ceil(maxElem.toDouble / bitsInLong).toInt
+  /**
+   * Samples subsets that will be used in categorical feature binarisation.
+   */
+  def sampleSubsets(categoricalFeaturesInfo: Map[Int, Int]): Map[Int, BitSet] = {
+    def randomBitSet(maxElem: Int): BitSet = {
+      val bitsInLong = 64
+      val longsNeeded = math.ceil(maxElem.toDouble / bitsInLong).toInt
 
-    BitSet.fromBitMaskNoCopy(Array.fill(longsNeeded)(Random.nextLong()))
+      BitSet.fromBitMaskNoCopy(Array.fill(longsNeeded)(Random.nextLong()))
+    }
+
+    categoricalFeaturesInfo.mapValues(randomBitSet)
   }
 
   def sampleFeatureIndices(data: RDD[LabeledPoint], numFeatures: Int): List[Int] = {
@@ -216,16 +216,16 @@ object Fern {
     results
   }
 
-  def train(input: RDD[LabeledPoint], numFeatures: Int, labels: Array[Double]): FernModel = {
+  def train(input: RDD[LabeledPoint], numFeatures: Int, categoricalFeaturesInfo: Map[Int, Int], labels: Array[Double]): FernModel = {
     val featureIndices = sampleFeatureIndices(input, numFeatures)
-    val binarisers = sampleBinarisers(input, featureIndices, Map.empty)
+    val binarisers = sampleBinarisers(input, featureIndices, categoricalFeaturesInfo)
 
     new Fern(Some(labels)).run(input, featureIndices, binarisers)
   }
 
-  def trainAndAssess(input: RDD[LabeledPoint], numFeatures: Int, labels: Array[Double]): FernModelWithStats = {
+  def trainAndAssess(input: RDD[LabeledPoint], numFeatures: Int, categoricalFeaturesInfo: Map[Int, Int], labels: Array[Double]): FernModelWithStats = {
     val featureIndices = sampleFeatureIndices(input, numFeatures)
-    val binarisers = sampleBinarisers(input, featureIndices, Map.empty)
+    val binarisers = sampleBinarisers(input, featureIndices, categoricalFeaturesInfo)
 
     new Fern(Some(labels)).runAndAssess(input, featureIndices, binarisers)
   }
@@ -233,15 +233,15 @@ object Fern {
   def train(input: RDD[LabeledPoint], featureIndices: List[Int], labels: Array[Double]): FernModel =
     new Fern(Some(labels)).run(input, featureIndices, sampleBinarisers(input, featureIndices, Map.empty))
 
-  def train(input: RDD[LabeledPoint], numFeatures: Int, labels: Array[Double], thresholds: List[Double]): FernModel =
-    new Fern(Some(labels)).run(input, sampleFeatureIndices(input, numFeatures), thresholdsToBinarisers(thresholds))
+  def train(input: RDD[LabeledPoint], numFeatures: Int, labels: Array[Double], binarisers: List[FeatureBinariser]): FernModel =
+    new Fern(Some(labels)).run(input, sampleFeatureIndices(input, numFeatures), binarisers)
 
-  def train(input: RDD[LabeledPoint], featureIndices: List[Int], labels: Array[Double], thresholds: List[Double]): FernModel =
-    new Fern(Some(labels)).run(input, featureIndices, thresholdsToBinarisers(thresholds))
+  def train(input: RDD[LabeledPoint], featureIndices: List[Int], labels: Array[Double], binarisers: List[FeatureBinariser]): FernModel =
+    new Fern(Some(labels)).run(input, featureIndices, binarisers)
 
-  def train(input: RDD[LabeledPoint], numFeatures: Int, thresholds: List[Double]): FernModel =
-    new Fern(None).run(input, sampleFeatureIndices(input, numFeatures), thresholdsToBinarisers(thresholds))
+  def train(input: RDD[LabeledPoint], numFeatures: Int, binarisers: List[FeatureBinariser]): FernModel =
+    new Fern(None).run(input, sampleFeatureIndices(input, numFeatures), binarisers)
 
-  def train(input: RDD[LabeledPoint], featureIndices: List[Int], thresholds: List[Double]): FernModel =
-    new Fern(None).run(input, featureIndices, thresholdsToBinarisers(thresholds))
+  def train(input: RDD[LabeledPoint], featureIndices: List[Int], binarisers: List[FeatureBinariser]): FernModel =
+    new Fern(None).run(input, featureIndices, binarisers)
 }

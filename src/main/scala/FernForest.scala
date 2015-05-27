@@ -25,14 +25,14 @@ case class FernForestModelWithStats(model: FernForestModel, oobConfusionMatrix: 
  * @author Mateusz Fedoryszak (m.fedoryszak@icm.edu.pl)
  */
 class FernForest {
-  def run(data: RDD[LabeledPoint], numFerns: Int, numFeatures: Int): FernForestModel = {
+  def run(data: RDD[LabeledPoint], numFerns: Int, numFeatures: Int, categoricalFeaturesInfo: Map[Int, Int]): FernForestModel = {
     val labels = util.extractLabels(data)
-    new FernForestModel(List.fill(numFerns)(Fern.train(data, numFeatures, labels)))
+    new FernForestModel(List.fill(numFerns)(Fern.train(data, numFeatures, categoricalFeaturesInfo, labels)))
   }
 
-  def runAndAssess(data: RDD[LabeledPoint], numFerns: Int, numFeatures: Int): FernForestModelWithStats = {
+  def runAndAssess(data: RDD[LabeledPoint], numFerns: Int, numFeatures: Int, categoricalFeaturesInfo: Map[Int, Int]): FernForestModelWithStats = {
     val labels = util.extractLabels(data)
-    val modelsWithStats = List.fill(numFerns)(Fern.trainAndAssess(data, numFeatures, labels))
+    val modelsWithStats = List.fill(numFerns)(Fern.trainAndAssess(data, numFeatures, categoricalFeaturesInfo, labels))
 
     val featureImportance = modelsWithStats.flatMap(_.featureImportance).groupBy(_._1).map{case (idx, list) => (idx, util.mean(list.unzip._2))}.toList
     val confusionMatrix = modelsWithStats.flatMap(_.oobConfusionMatrix).groupBy(_._1).map{case (cell, list) => (cell, list.unzip._2.sum)}.toList
@@ -52,11 +52,11 @@ class FernForest {
  * @author Mateusz Fedoryszak (m.fedoryszak@icm.edu.pl)
  */
 object FernForest {
-  def train(input: RDD[LabeledPoint], numFerns: Int, numFeatures: Int): FernForestModel =
-    new FernForest().run(input, numFerns, numFeatures)
+  def train(input: RDD[LabeledPoint], numFerns: Int, numFeatures: Int, categoricalFeaturesInfo: Map[Int, Int]): FernForestModel =
+    new FernForest().run(input, numFerns, numFeatures, categoricalFeaturesInfo)
 
-  def trainAndAssess(input: RDD[LabeledPoint], numFerns: Int, numFeatures: Int): FernForestModelWithStats =
-    new FernForest().runAndAssess(input, numFerns, numFeatures)
+  def trainAndAssess(input: RDD[LabeledPoint], numFerns: Int, numFeatures: Int, categoricalFeaturesInfo: Map[Int, Int]): FernForestModelWithStats =
+    new FernForest().runAndAssess(input, numFerns, numFeatures, categoricalFeaturesInfo)
 
   def train(input: RDD[LabeledPoint], featureIndices: List[List[Int]]): FernForestModel =
     new FernForest().run(input, featureIndices)
