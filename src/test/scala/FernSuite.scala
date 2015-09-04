@@ -5,7 +5,7 @@ import org.scalatest._
 /**
  * @author Mateusz Fedoryszak (m.fedoryszak@icm.edu.pl)
  */
-class FernSuite extends FunSuite with LocalSparkContext {
+class FernSuite extends FunSuite with LocalSparkContext with FixedRandomNumGenSeed {
   test("Simple fern") {
     val dataset = Seq(
       LabeledPoint(1.0, Vectors.dense(1.0, 1.0, 1.0)),

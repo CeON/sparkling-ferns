@@ -10,7 +10,7 @@ import scala.util.Random
 /**
  * @author Mateusz Fedoryszak (m.fedoryszak@icm.edu.pl)
  */
-class FernForestIntegrationSuite extends FunSuite with LocalSparkContext {
+class FernForestIntegrationSuite extends FunSuite with LocalSparkContext with FixedRandomNumGenSeed {
   test("Simple integration test on Iris dataset") {
     val namedPoints = managed(Source.fromInputStream(getClass.getResourceAsStream("iris.csv"))).acquireAndGet {source =>
       val lines = source.getLines().filterNot(_.trim.isEmpty).toList
