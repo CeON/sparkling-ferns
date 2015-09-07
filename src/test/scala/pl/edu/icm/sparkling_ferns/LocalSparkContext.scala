@@ -1,3 +1,5 @@
+package pl.edu.icm.sparkling_ferns
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -15,10 +17,8 @@
  * limitations under the License.
  */
 
-import org.scalatest.Suite
-import org.scalatest.BeforeAndAfterAll
-
 import org.apache.spark.{SparkConf, SparkContext}
+import org.scalatest.{BeforeAndAfterAll, Suite}
 
 trait LocalSparkContext extends BeforeAndAfterAll { self: Suite =>
   @transient var sc: SparkContext = _

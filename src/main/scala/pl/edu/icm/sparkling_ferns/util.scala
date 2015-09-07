@@ -1,3 +1,5 @@
+package pl.edu.icm.sparkling_ferns
+
 import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.rdd.RDD
 

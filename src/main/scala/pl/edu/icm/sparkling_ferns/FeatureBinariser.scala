@@ -1,3 +1,5 @@
+package pl.edu.icm.sparkling_ferns
+
 import scala.collection.BitSet
 
 trait FeatureBinariser extends Serializable {

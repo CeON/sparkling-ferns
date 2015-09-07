@@ -1,8 +1,10 @@
+package pl.edu.icm.sparkling_ferns
+
 import breeze.numerics.log
 import breeze.stats.distributions.Poisson
 import org.apache.spark.SparkContext._
 import org.apache.spark.mllib.classification.ClassificationModel
-import org.apache.spark.mllib.linalg.{Vectors, Vector}
+import org.apache.spark.mllib.linalg.{Vector, Vectors}
 import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.rdd.RDD
 

@@ -1,3 +1,5 @@
+package pl.edu.icm.sparkling_ferns
+
 import org.scalatest.{BeforeAndAfterEach, Suite}
 
 import scala.util.Random

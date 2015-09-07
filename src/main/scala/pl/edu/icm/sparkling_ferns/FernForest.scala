@@ -1,3 +1,5 @@
+package pl.edu.icm.sparkling_ferns
+
 import org.apache.spark.mllib.classification.ClassificationModel
 import org.apache.spark.mllib.linalg.Vector
 import org.apache.spark.mllib.regression.LabeledPoint
