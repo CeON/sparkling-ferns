@@ -2,7 +2,7 @@ organization := "pl.edu.icm"
 
 normalizedName := "sparkling-ferns"
 
-version := "0.1.0-SNAPSHOT"
+version := "0.1.0"
 
 name := "Sparkling Ferns"
 
