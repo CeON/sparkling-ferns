@@ -112,31 +112,8 @@ class Fern(val presetLabels: Option[Array[Double]] = None) {
   }
 
   def computeScores(training: RDD[(Double, Int)], numDistinctPoints: Int, labels: Array[Double]) = {
-    val aggregated = training.groupBy(identity).map(x => (x._1, x._2.size)).collect()
-
-    val labelsRev = labels.toList.zipWithIndex.toMap
-    val numLabels = labels.length
-
-    val objectsInLeafPerLabel = Array.fill[Long](numLabels, numDistinctPoints)(1)
-    val objectsInLeaf = Array.fill[Long](numDistinctPoints)(0)
-    val objectsPerLabel = Array.fill[Long](numLabels)(0)
-
-    aggregated.foreach{ case ((label, pointIdx), count) =>
-      val labelIdx = labelsRev(label)
-      objectsInLeafPerLabel(labelIdx)(pointIdx) += count
-      objectsInLeaf(pointIdx) += count
-      objectsPerLabel(labelIdx) += count
-    }
-
-    val numSamples = objectsPerLabel.sum
-
-    val scores = Array.tabulate[Double](numLabels, numDistinctPoints) { case (label, pointIdx) => log(
-      (objectsInLeafPerLabel(label)(pointIdx) + 1).toDouble/(objectsInLeaf(pointIdx) + numLabels)
-        *
-        (numSamples + numLabels).toDouble/(objectsPerLabel(label) + 1)
-    )}
-
-    scores
+    val aggregated = training.groupBy(identity).map(x => (x._1, x._2.size.toLong)).collect()
+    Fern.computeScores(aggregated, numDistinctPoints, labels)
   }
 }
 
@@ -200,8 +177,38 @@ object Fern {
   }
 
   def sampleFeatureIndices(data: RDD[LabeledPoint], numFeatures: Int): List[Int] = {
-    val allFeaturesNo = data.first().features.size
-    Random.shuffle((0 until allFeaturesNo).toList).take(numFeatures).sorted
+    val numFeaturesInData = data.first().features.size
+    sampleFeatureIndices(numFeaturesInData, numFeatures)
+  }
+
+  def sampleFeatureIndices(numFeaturesInData: Int, numFeatures: Int): List[Int] = {
+    Random.shuffle((0 until numFeaturesInData).toList).take(numFeatures).sorted
+  }
+
+  def computeScores(aggregated: Array[((Double, Int), Long)], numDistinctPoints: Int, labels: Array[Double]) = {
+    val labelsRev = labels.toList.zipWithIndex.toMap
+    val numLabels = labels.length
+
+    val objectsInLeafPerLabel = Array.fill[Long](numLabels, numDistinctPoints)(1)
+    val objectsInLeaf = Array.fill[Long](numDistinctPoints)(0)
+    val objectsPerLabel = Array.fill[Long](numLabels)(0)
+
+    aggregated.foreach{ case ((label, pointIdx), count) =>
+      val labelIdx = labelsRev(label)
+      objectsInLeafPerLabel(labelIdx)(pointIdx) += count
+      objectsInLeaf(pointIdx) += count
+      objectsPerLabel(labelIdx) += count
+    }
+
+    val numSamples = objectsPerLabel.sum
+
+    val scores = Array.tabulate[Double](numLabels, numDistinctPoints) { case (label, pointIdx) => log(
+      (objectsInLeafPerLabel(label)(pointIdx) + 1).toDouble/(objectsInLeaf(pointIdx) + numLabels)
+        *
+        (numSamples + numLabels).toDouble/(objectsPerLabel(label) + 1)
+    )}
+
+    scores
   }
 
   def shuffleFeatureValues(data: RDD[LabeledPoint], featureIndex: Int): RDD[(LabeledPoint, LabeledPoint)] = {
