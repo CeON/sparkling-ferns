@@ -36,13 +36,11 @@ class FernForest {
   }
 
   def runAndAssess(data: RDD[LabeledPoint], numFerns: Int, numFeatures: Int, categoricalFeaturesInfo: Map[Int, Int]): FernForestModelWithStats = {
-    val labels = util.extractLabels(data)
-
-    val numFeaturesInData = data.take(1).head.features.size
+    val metadata = DatasetMetadata.fromData(data)
 
     val withMultipliers = data.map(x => (x, Array.fill(numFerns)(Poisson.distribution(1.0).draw())))
 
-    val featureIndicesPerFern = Array.fill(numFerns)(Fern.sampleFeatureIndices(numFeaturesInData, numFeatures))
+    val featureIndicesPerFern = Array.fill(numFerns)(Fern.sampleFeatureIndices(metadata.numFeatures, numFeatures))
 
     val binarisersPerFern = Array.tabulate(numFerns)(i =>
       Fern.sampleBinarisers(
@@ -61,7 +59,7 @@ class FernForest {
 
     val countsPerFern = counts.groupBy(_._1._1).mapValues(_.map{ case ((_, label, idx), count) => (label, idx) -> count})
 
-    val ferns = (0 until numFerns).toList.map { i => fernBuilders(i).build(countsPerFern(i), labels)}
+    val ferns = (0 until numFerns).toList.map { i => fernBuilders(i).build(countsPerFern(i), metadata.labels)}
 
     val model = new FernForestModel(ferns)
 
@@ -70,7 +68,7 @@ class FernForest {
       fernIndices.map(ferns).map(fern => ((point.label, fern.predict(point.features)), 1l))
     }.reduceByKey(_ + _).collect().toList
 
-    val modelsWithStats = List.fill(numFerns)(Fern.trainAndAssess(data, numFeatures, categoricalFeaturesInfo, labels))
+    val modelsWithStats = List.fill(numFerns)(Fern.trainAndAssess(data, numFeatures, categoricalFeaturesInfo, metadata.labels))
 
     val featureImportance = Nil //modelsWithStats.flatMap(_.featureImportance).groupBy(_._1).map{case (idx, list) => (idx, util.mean(list.unzip._2))}.toList
 
