@@ -31,6 +31,7 @@ lazy val root = (project in file(".")).
     publishArtifact in Test := false,
     pomIncludeRepository := { _ => false },
     test in assembly := {},
+    assemblyJarName in assembly := organization.value + "." + normalizedName.value + "-" + version.value + ".jar",
     licenses := Seq("Apache-2.0" -> url("https://www.apache.org/licenses/LICENSE-2.0.html")),
     homepage := Some(url("https://github.com/CeON/sparkling-ferns")),
     pomExtra := (
@@ -44,7 +45,11 @@ lazy val root = (project in file(".")).
             <name>Mateusz Fedoryszak</name>
             <email>mfedoryszak@gmail.com</email>
           </developer>
+          <developer>
+            <id>pdendek</id>
+            <name>Piotr Dendek</name>
+            <email>pdendek@icm.edu.pl</email>
+          </developer>
         </developers>)
   )
-
 
