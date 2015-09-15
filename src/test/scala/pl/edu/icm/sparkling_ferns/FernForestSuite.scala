@@ -32,6 +32,8 @@ class FernForestSuite extends FunSuite with LocalSparkContext with FixedRandomNu
       LabeledPoint(1.0, Vectors.dense(2.0, 2.0, 2.0)),
       LabeledPoint(1.0, Vectors.dense(2.0, 2.0, 2.0)),
       LabeledPoint(-1.0, Vectors.dense(1.0, 1.0, 1.0)),
+      LabeledPoint(-1.0, Vectors.dense(1.0, 1.0, 1.0)),
+      LabeledPoint(-1.0, Vectors.dense(1.0, 1.0, 1.0)),
       LabeledPoint(-1.0, Vectors.dense(1.0, 1.0, 1.0))
     )
 
