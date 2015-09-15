@@ -7,6 +7,8 @@ import org.apache.spark.mllib.linalg.Vector
 import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.rdd.RDD
 
+import scala.util.Random
+
 /**
  * @author Mateusz Fedoryszak (m.fedoryszak@icm.edu.pl)
  */
@@ -42,10 +44,20 @@ class FernForest {
 
     val featureIndicesPerFern = Array.fill(numFerns)(Fern.sampleFeatureIndices(metadata.numFeatures, numFeatures))
 
+    val thresholdsPerFern = withMultipliers.flatMap { case(point, muls) =>
+      val features = point.features.toArray
+      for {
+        fernIdx <- 0 until numFerns
+        featureIdx <- featureIndicesPerFern(fernIdx) if !categoricalFeaturesInfo.contains(featureIdx)
+        _ <- 0 until muls(fernIdx)
+      } yield ((fernIdx, featureIdx), List((Random.nextFloat(), features(featureIdx))))
+    }.reduceByKey((list1, list2) => (list1 ++ list2).sortBy(_._1).take(2))
+      .mapValues(_.unzip._2).mapValues(list => list.sum / list.size).collect()
+      .groupBy(_._1._1).mapValues(_.map{case ((fernIdx, featureIdx), threshold) => (featureIdx, threshold)}.toMap)
+
     val binarisersPerFern = Array.tabulate(numFerns)(i =>
-      Fern.sampleBinarisers(
-        withMultipliers.flatMap{case (point, muls) => List.fill(muls(i))(point)},
-        featureIndicesPerFern(i), categoricalFeaturesInfo))
+      Fern.sampleBinarisersPresetThresholds(
+        thresholdsPerFern.getOrElse(i, Map.empty), featureIndicesPerFern(i), categoricalFeaturesInfo))
 
     val fernBuilders = (0 until numFerns).map{i =>
       new FernBuilder(featureIndicesPerFern(i), binarisersPerFern(i))

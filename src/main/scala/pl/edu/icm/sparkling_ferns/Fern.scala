@@ -136,6 +136,10 @@ object Fern {
     val continuousFeatureIndices = featureIndices.filterNot(categoricalFeaturesInfo.contains)
     val thresholds = sampleThresholds(data, continuousFeatureIndices)
 
+    sampleBinarisersPresetThresholds(thresholds, featureIndices, categoricalFeaturesInfo)
+  }
+
+  def sampleBinarisersPresetThresholds(thresholds: Map[Int, Double], featureIndices: List[Int], categoricalFeaturesInfo: Map[Int, Int]): List[FeatureBinariser] = {
     val selectedCategoricalFeaturesInfo = categoricalFeaturesInfo.filterKeys(featureIndices.contains)
     val subsets = sampleSubsets(selectedCategoricalFeaturesInfo)
 
