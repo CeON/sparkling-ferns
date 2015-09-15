@@ -39,7 +39,7 @@ class FernForestSuite extends FunSuite with LocalSparkContext with FixedRandomNu
 
     val rdd = sc.parallelize(dataset)
 
-    val model = FernForest.train(rdd, 3, 2, Map(0 -> 3, 1 -> 3, 2 -> 3))
+    val model = FernForest.train(rdd, 7, 2, Map(0 -> 3, 1 -> 3, 2 -> 3))
 
     assert(model.predict(Vectors.dense(0.0, 0.0, 0.0)) == 1.0)
     assert(model.predict(Vectors.dense(1.0, 1.0, 1.0)) == -1.0)
