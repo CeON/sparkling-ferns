@@ -12,11 +12,18 @@ import scala.util.Random
 /**
  * @author Mateusz Fedoryszak (m.fedoryszak@icm.edu.pl)
  */
-class FernForestModel(private val ferns: List[FernModel]) extends ClassificationModel with Serializable {
+class FernForestModel(private val ferns: Array[FernModel]) extends ClassificationModel with Serializable {
   override def predict(testData: RDD[Vector]): RDD[Double] = testData.map(predict)
 
   override def predict(testData: Vector): Double = {
-    val scores = ferns.map(_.scores(testData))
+    predictSubset(testData, 0 until ferns.length)
+  }
+
+  /**
+   * Make a prediction using only a subsed of ferns specified by fernIdcs parameter.
+   */
+  def predictSubset(testData: Vector, fernIdcs: TraversableOnce[Int]): Double = {
+    val scores = fernIdcs.map(ferns).map(_.scores(testData))
     val scoreSums = scores.reduce(util.arrayReduction[Double](_ + _))
     val labels = ferns.head.labels
     val labelIdx = (0 until labels.length) maxBy scoreSums
@@ -71,13 +78,13 @@ class FernForest {
 
     val countsPerFern = counts.groupBy(_._1._1).mapValues(_.map{ case ((_, label, idx), count) => (label, idx) -> count})
 
-    val ferns = (0 until numFerns).toList.map { i => fernBuilders(i).build(countsPerFern(i), metadata.labels)}
+    val ferns = (0 until numFerns).map{ i => fernBuilders(i).build(countsPerFern(i), metadata.labels)}.toArray
 
     val model = new FernForestModel(ferns)
 
-    val confusionMatrix = withMultipliers.flatMap{ case (point, muls) =>
+    val confusionMatrix = withMultipliers.filter(_._2.contains(0)).map{ case (point, muls) =>
       val fernIndices = muls.toList.zipWithIndex.filter(_._1 == 0).map(_._2)
-      fernIndices.map(ferns).map(fern => ((point.label, fern.predict(point.features)), 1l))
+      ((point.label, model.predictSubset(point.features, fernIndices)), 1l)
     }.reduceByKey(_ + _).collect().toList
 
     val modelsWithStats = List.fill(numFerns)(Fern.trainAndAssess(data, numFeatures, categoricalFeaturesInfo, metadata.labels))
@@ -89,7 +96,7 @@ class FernForest {
 
   def run(data: RDD[LabeledPoint], featureIndices: List[List[Int]]): FernForestModel = {
     val labels = util.extractLabels(data)
-    new FernForestModel(featureIndices.map(Fern.train(data, _, labels)))
+    new FernForestModel(featureIndices.map(Fern.train(data, _, labels)).toArray)
   }
 }
 
