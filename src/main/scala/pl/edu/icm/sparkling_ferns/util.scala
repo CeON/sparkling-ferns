@@ -12,7 +12,7 @@ object util {
     Array.tabulate(minLen)(i => f(a1(i), a2(i)))
   }
 
-  def mean[T](s: Seq[T])(implicit n: Fractional[T]) = n.div(s.sum, n.fromInt(s.size))
+  def mean[T](s: Traversable[T])(implicit n: Fractional[T]) = n.div(s.sum, n.fromInt(s.size))
 
   def extractLabels(data: RDD[LabeledPoint]) =
     data.map(p => p.label).distinct().collect()
