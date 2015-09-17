@@ -10,7 +10,7 @@ lazy val commonSettings = Seq(
 )
 
 lazy val root = (project in file(".")).
-  settings(commonSettings).
+  settings(commonSettings: _*).
   settings(
     parallelExecution in Test := false,
     libraryDependencies ++= Seq(
@@ -31,7 +31,7 @@ lazy val root = (project in file(".")).
     publishArtifact in Test := false,
     pomIncludeRepository := { _ => false },
     test in assembly := {},
-    assemblyJarName in assembly := organization.value + "." + normalizedName.value + "-" + version.value + ".jar",
+//    assemblyJarName in assembly := organization.value + "." + normalizedName.value + "-" + version.value + ".jar",
     licenses := Seq("Apache-2.0" -> url("https://www.apache.org/licenses/LICENSE-2.0.html")),
     homepage := Some(url("https://github.com/CeON/sparkling-ferns")),
     pomExtra := (
