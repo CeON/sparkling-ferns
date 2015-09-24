@@ -59,9 +59,7 @@ class FernForestIntegrationSuite extends FunSuite with LocalSparkContext with Fi
         personsMap(p(3)), lugBootMap(p(4)), safetyMap(p(5)))))
     }
 
-    val balancedLabeledPoints = labeledPoints.groupBy(_.label).mapValues(list => Random.shuffle(list).take(65)).values.flatten.toList
-
-    val rdd = sc.parallelize(balancedLabeledPoints)
+    val rdd = sc.parallelize(labeledPoints)
 
     val markedPoints = rdd.map(p => (p, Random.nextDouble()))
 
