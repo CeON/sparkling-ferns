@@ -193,11 +193,11 @@ object Fern {
     val labelsRev = labels.toList.zipWithIndex.toMap
     val numLabels = labels.length
 
-    val objectsInLeafPerLabel = Array.fill[Long](numLabels, numDistinctPoints)(1)
+    val objectsInLeafPerLabel = Array.fill[Long](numLabels, numDistinctPoints)(0)
     val objectsInLeaf = Array.fill[Long](numDistinctPoints)(0)
     val objectsPerLabel = Array.fill[Long](numLabels)(0)
 
-    aggregated.foreach{ case ((label, pointIdx), count) =>
+    aggregated.foreach { case ((label, pointIdx), count) =>
       val labelIdx = labelsRev(label)
       objectsInLeafPerLabel(labelIdx)(pointIdx) += count
       objectsInLeaf(pointIdx) += count
@@ -206,10 +206,19 @@ object Fern {
 
     val numSamples = objectsPerLabel.sum
 
+    val countOfZeros = objectsInLeafPerLabel.map(_.count(_ == 0)).sum
+    val countOfMin = objectsInLeafPerLabel.flatMap(_.filter(_ > 0)).groupBy(identity).minBy(_._1)._2.length
+    val epsilon =
+      if (countOfZeros > 0) {
+        countOfMin.toDouble / (countOfZeros * numSamples)
+      } else {
+        0.0
+      }
+
     val scores = Array.tabulate[Double](numLabels, numDistinctPoints) { case (label, pointIdx) => log(
-      (objectsInLeafPerLabel(label)(pointIdx) + 1).toDouble/(objectsInLeaf(pointIdx) + numLabels)
+      (objectsInLeafPerLabel(label)(pointIdx) + epsilon)/(objectsInLeaf(pointIdx) + numLabels * epsilon)
         *
-        (numSamples + numLabels).toDouble/(objectsPerLabel(label) + 1)
+        (numSamples + numLabels * epsilon)/(objectsPerLabel(label) + epsilon)
     )}
 
     scores
