@@ -207,6 +207,7 @@ object Fern {
     val numSamples = objectsPerLabel.sum
 
     val countOfZeros = objectsInLeafPerLabel.map(_.count(_ == 0)).sum
+    assert(countOfZeros < numLabels * numDistinctPoints, "Empty fern, please rerun the algorithm and/or supply a bigger training set")
     val countOfMin = objectsInLeafPerLabel.flatMap(_.filter(_ > 0)).groupBy(identity).minBy(_._1)._2.length
     val epsilon =
       if (countOfZeros > 0) {
