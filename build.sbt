@@ -1,7 +1,7 @@
 lazy val commonSettings = Seq(
     organization := "pl.edu.icm",
     normalizedName := "sparkling-ferns",
-    version := "0.2.0-SNAPSHOT",
+    version := "0.2.0",
     name := "Sparkling Ferns",
     organizationName := "Interdisciplinary Centre for Mathematical and Computational Modelling, University of Warsaw",
     description := "An implementation of Random Ferns machine learning algorithm for Apache Spark.",
