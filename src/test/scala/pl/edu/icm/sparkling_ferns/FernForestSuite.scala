@@ -5,7 +5,7 @@ import org.apache.spark.mllib.regression.LabeledPoint
 import org.scalatest.FunSuite
 
 /**
- * @author Mateusz Fedoryszak (m.fedoryszak@icm.edu.pl)
+ * @author Mateusz Fedoryszak (mfedoryszak@gmail.com)
  */
 class FernForestSuite extends FunSuite with LocalSparkContext with FixedRandomNumGenSeed {
   test("Simple fern forest") {

@@ -10,7 +10,7 @@ import scala.io.Source
 import scala.util.Random
 
 /**
- * @author Mateusz Fedoryszak (m.fedoryszak@icm.edu.pl)
+ * @author Mateusz Fedoryszak (mfedoryszak@gmail.com)
  */
 class FernForestIntegrationSuite extends FunSuite with LocalSparkContext with FixedRandomNumGenSeed {
   test("Simple integration test on Iris dataset") {

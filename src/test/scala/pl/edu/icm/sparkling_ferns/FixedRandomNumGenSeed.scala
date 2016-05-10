@@ -5,7 +5,7 @@ import org.scalatest.{BeforeAndAfterEach, Suite}
 import scala.util.Random
 
 /**
- * @author Mateusz Fedoryszak (m.fedoryszak@icm.edu.pl)
+ * @author Mateusz Fedoryszak (mfedoryszak@gmail.com)
  */
 trait FixedRandomNumGenSeed extends BeforeAndAfterEach { self: Suite =>
   override def beforeEach() {

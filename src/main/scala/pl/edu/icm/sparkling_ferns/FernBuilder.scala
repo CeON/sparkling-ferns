@@ -3,7 +3,7 @@ package pl.edu.icm.sparkling_ferns
 import org.apache.spark.mllib.linalg.Vector
 
 /**
- * @author Mateusz Fedoryszak (m.fedoryszak@icm.edu.pl)
+ * @author Mateusz Fedoryszak (mfedoryszak@gmail.com)
  */
 case class FernBuilder(featureIndices: List[Int], thresholds: Map[Int, Double], categoricalFeaturesInfo: Map[Int, Int]) extends Serializable {
   val binarisers = Fern.sampleBinarisersPresetThresholds(thresholds, featureIndices, categoricalFeaturesInfo)

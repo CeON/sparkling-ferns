@@ -4,7 +4,7 @@ import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.rdd.RDD
 
 /**
- * @author Mateusz Fedoryszak (m.fedoryszak@icm.edu.pl)
+ * @author Mateusz Fedoryszak (mfedoryszak@gmail.com)
  */
 case class DatasetMetadata(labels: Array[Double], numFeatures: Int)
 

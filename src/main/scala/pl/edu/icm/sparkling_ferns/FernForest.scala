@@ -10,7 +10,7 @@ import org.apache.spark.rdd.RDD
 import scala.util.Random
 
 /**
- * @author Mateusz Fedoryszak (m.fedoryszak@icm.edu.pl)
+ * @author Mateusz Fedoryszak (mfedoryszak@gmail.com)
  */
 class FernForestModel(val ferns: Array[FernModel]) extends ClassificationModel with Serializable {
   override def predict(testData: RDD[Vector]): RDD[Double] = testData.map(predict)
@@ -35,7 +35,7 @@ class FernForestModel(val ferns: Array[FernModel]) extends ClassificationModel w
 case class FernForestModelWithStats(model: FernForestModel, oobConfusionMatrix: List[((Double, Double), Long)], featureImportance: List[(Int, Double)])
 
 /**
- * @author Mateusz Fedoryszak (m.fedoryszak@icm.edu.pl)
+ * @author Mateusz Fedoryszak (mfedoryszak@gmail.com)
  */
 class FernForest {
   def run(data: RDD[LabeledPoint], numFerns: Int, numFeatures: Int, categoricalFeaturesInfo: Map[Int, Int]): FernForestModel = {
@@ -100,7 +100,7 @@ class FernForest {
 }
 
 /**
- * @author Mateusz Fedoryszak (m.fedoryszak@icm.edu.pl)
+ * @author Mateusz Fedoryszak (mfedoryszak@gmail.com)
  */
 object FernForest {
   def train(input: RDD[LabeledPoint], numFerns: Int, numFeatures: Int, categoricalFeaturesInfo: Map[Int, Int]): FernForestModel =

@@ -4,7 +4,7 @@ import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.rdd.RDD
 
 /**
- * @author Mateusz Fedoryszak (m.fedoryszak@icm.edu.pl)
+ * @author Mateusz Fedoryszak (mfedoryszak@gmail.com)
  */
 object util {
   def arrayReduction[T : Manifest](f: (T, T) => T)(a1: Array[T], a2: Array[T]): Array[T] = {

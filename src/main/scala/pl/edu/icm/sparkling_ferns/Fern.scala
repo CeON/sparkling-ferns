@@ -12,7 +12,7 @@ import scala.collection.immutable.BitSet
 import scala.util.Random
 
 /**
- * @author Mateusz Fedoryszak (m.fedoryszak@icm.edu.pl)
+ * @author Mateusz Fedoryszak (mfedoryszak@gmail.com)
  */
 class FernModel (
     val labels: Array[Double],
@@ -61,14 +61,14 @@ class FernModel (
 }
 
 /**
- * @author Mateusz Fedoryszak (m.fedoryszak@icm.edu.pl)
+ * @author Mateusz Fedoryszak (mfedoryszak@gmail.com)
  */
 case class FernModelWithStats(model: FernModel,
                               oobConfusionMatrix: List[((Double, Double), Long)],
                               featureImportance: List[(Int, Double)])
 
 /**
- * @author Mateusz Fedoryszak (m.fedoryszak@icm.edu.pl)
+ * @author Mateusz Fedoryszak (mfedoryszak@gmail.com)
  */
 class Fern(val presetLabels: Option[Array[Double]] = None) {
   /**
@@ -118,7 +118,7 @@ class Fern(val presetLabels: Option[Array[Double]] = None) {
 }
 
 /**
- * @author Mateusz Fedoryszak (m.fedoryszak@icm.edu.pl)
+ * @author Mateusz Fedoryszak (mfedoryszak@gmail.com)
  */
 object Fern {
   def toPointIndex(list: List[Double], binarisers: List[FeatureBinariser]): Int = {
